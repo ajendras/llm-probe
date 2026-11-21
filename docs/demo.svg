@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="572" viewBox="0 0 900 572" role="img" aria-label="LLM Probe — demo">
+  <style>
+    text{font-family:ui-monospace,SFMono-Regular,Consolas,'Liberation Mono',Menlo,monospace;font-size:15px}
+    .l{opacity:0}
+    .ty{clip-path:inset(0 100% 0 0)}
+    .cur{animation:blink 1s steps(1) infinite}
+    @keyframes show{to{opacity:1}}
+    @keyframes type{to{clip-path:inset(0 0 0 0)}}
+    @keyframes blink{50%{opacity:0}}
+    @media (prefers-reduced-motion:reduce){.l{opacity:1;animation:none!important}.ty{clip-path:none;animation:none!important}}
+  </style>
+  <rect width="900" height="572" rx="14" fill="#0d1117"/>
+  <rect x=".5" y=".5" width="899" height="572" rx="14" fill="none" stroke="#30363d"/>
+  <rect width="900" height="40" rx="14" fill="#161b22"/><rect y="26" width="900" height="14" fill="#161b22"/>
+  <circle cx="24" cy="20" r="6" fill="#ff5f57"/><circle cx="44" cy="20" r="6" fill="#febc2e"/><circle cx="64" cy="20" r="6" fill="#28c840"/>
+  <text x="450" y="25" text-anchor="middle" fill="#8b949e" style="font-size:13px">LLM Probe — demo</text>
+<text x="28" y="74" class="l" style="animation:show .01s 0.60s forwards"><tspan fill="#00ff41">❯</tspan></text><text x="50" y="74" class="l ty" style="animation:show .01s 0.60s forwards,type 1.04s steps(23) 0.60s forwards" fill="#e5e7eb">cargo install llm-probe</text>
+<text x="50" y="100" class="l" style="animation:show .01s 1.94s forwards" fill="#94a3b8">Compiling llm-probe v0.1.0</text>
+<text x="50" y="126" class="l" style="animation:show .01s 2.16s forwards" fill="#94a3b8">Finished release [optimized] target(s)</text>
+<text x="50" y="152" class="l" style="animation:show .01s 2.38s forwards" fill="#94a3b8">Installed package `llm-probe` (0.1.0)</text>
+<text x="28" y="204" class="l" style="animation:show .01s 2.95s forwards"><tspan fill="#00ff41">❯</tspan></text><text x="50" y="204" class="l ty" style="animation:show .01s 2.95s forwards,type 2.20s steps(50) 2.95s forwards" fill="#e5e7eb">llm-probe scan --model mistral --attacks injection</text>
+<text x="50" y="230" class="l" style="animation:show .01s 5.45s forwards" fill="#4ade80">✓ Connected to Ollama (mistral)</text>
+<text x="50" y="256" class="l" style="animation:show .01s 5.67s forwards" fill="#94a3b8">Running 12 injection variants... [=====&gt;] 100%</text>
+<text x="50" y="282" class="l" style="animation:show .01s 5.89s forwards" fill="#94a3b8">Injection success rate: 0.17 (2/12)</text>
+<text x="50" y="308" class="l" style="animation:show .01s 6.11s forwards" fill="#94a3b8">Vulnerability score: LOW</text>
+<text x="28" y="360" class="l" style="animation:show .01s 6.68s forwards"><tspan fill="#00ff41">❯</tspan></text><text x="50" y="360" class="l ty" style="animation:show .01s 6.68s forwards,type 2.20s steps(51) 6.68s forwards" fill="#e5e7eb">llm-probe scan --model llama3.1 --attacks jailbreak</text>
+<text x="50" y="386" class="l" style="animation:show .01s 9.18s forwards" fill="#4ade80">✓ Connected to Ollama (llama3.1)</text>
+<text x="50" y="412" class="l" style="animation:show .01s 9.40s forwards" fill="#94a3b8">Running 8 jailbreak templates... [=====&gt;] 100%</text>
+<text x="50" y="438" class="l" style="animation:show .01s 9.62s forwards" fill="#94a3b8">Jailbreak success rate: 0.00 (0/8)</text>
+<text x="50" y="464" class="l" style="animation:show .01s 9.84s forwards" fill="#94a3b8">Overall risk: 0.08 — model appears robust</text>
+<text x="28" y="516" class="l" style="animation:show .01s 10.41s forwards"><tspan fill="#00ff41">❯</tspan></text><text x="50" y="516" class="l ty" style="animation:show .01s 10.41s forwards,type 2.12s steps(47) 10.41s forwards" fill="#e5e7eb">llm-probe report --session latest --format json</text>
+<g class="l" style="animation:show .01s 12.83s forwards"><text x="28" y="542" fill="#00ff41">❯</text><rect class="cur" x="50" y="527" width="10" height="18" fill="#e5e7eb"/></g>
+</svg>
