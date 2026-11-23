@@ -1,4 +1,11 @@
 #![warn(clippy::pedantic)]
+mod attack;
+mod attacks;
+mod config;
+mod model;
+mod reporter;
+mod scorer;
+mod templates;
 //! LLM Probe — Automated red-teaming toolkit for LLMs.
 //!
 //! Provides the core public API including `RedTeamer`, the `Attack` trait,
@@ -11,6 +18,8 @@ use colored::*;
 use comfy_table::{Cell, Color as TableColor, Table};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use config::load_config;
+use model::{HuggingFaceClient, OllamaClient, OpenAiCompatibleClient};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AttackMetadata {
@@ -327,7 +336,6 @@ pub async fn run(command: Command) -> Result<()> {
 
 async fn run_scan(cmd: ScanCmd) -> Result<()> {
     println!(
-        "{}",
         r#"
   _      _               ____            
  | |    | |             |  _ \           
@@ -339,15 +347,47 @@ async fn run_scan(cmd: ScanCmd) -> Result<()> {
         .green()
     );
 
-    let redteamer = RedTeamer::builder().model(&cmd.model).build();
-    let report = redteamer.run(&cmd.model).await?;
+    let mut cfg = load_config()?;
+    cfg.model = cmd.model;
+    if let Some(endpoint) = cmd.endpoint {
+        cfg.endpoint = Some(endpoint);
+    }
+    if let Some(output) = cmd.output {
+        cfg.output = Some(output);
+    }
+    cfg.concurrency = cmd.concurrency;
+
+    let client: Arc<dyn LlmClient> = if let Some(ep) = &cfg.endpoint {
+        let ep_lower = ep.to_ascii_lowercase();
+        if ep_lower.contains("ollama") || ep.contains("11434") {
+            Arc::new(OllamaClient::with_base_url(ep, cfg.model.clone()))
+        } else if ep_lower.contains("lmstudio") || ep.contains(":1234") {
+            Arc::new(OpenAiCompatibleClient::for_lm_studio(cfg.model.clone()))
+        } else if ep_lower.contains("huggingface") || ep_lower.contains("tgi") || ep.contains(":8080") {
+            Arc::new(HuggingFaceClient::with_base_url(ep.clone()))
+        } else {
+            Arc::new(OpenAiCompatibleClient::with_base_url(ep, cfg.model.clone(), cfg.api_key.clone()))
+        }
+    } else {
+        Arc::new(OllamaClient::new(cfg.model.clone()))
+    };
+
+    let attacks = attacks::all_attacks();
+
+    let redteamer = RedTeamer::builder()
+        .with_client(client)
+        .attacks(attacks)
+        .model(&cfg.model)
+        .build();
+
+    let report = redteamer.run(&cfg.model).await?;
 
     render_terminal_report(&report);
 
-    if let Some(path) = cmd.output {
+    if let Some(path) = &cfg.output {
         let json =
             serde_json::to_string_pretty(&report).context("Failed to serialize report to JSON")?;
-        std::fs::write(&path, json).context("Failed to write JSON report")?;
+        std::fs::write(path, json).context("Failed to write JSON report")?;
         println!("{} Full session replay saved to {}", "[+]".green(), path);
     }
 

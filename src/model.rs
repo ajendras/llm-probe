@@ -101,6 +101,11 @@ impl OpenAiCompatibleClient {
         Self::with_base_url("https://api.openai.com/v1", model, Some(api_key.into()))
     }
 
+    /// Convenience constructor for LM Studio's default local server (http://localhost:1234/v1).
+    pub fn for_lm_studio(model: impl Into<String>) -> Self {
+        Self::with_base_url("http://localhost:1234/v1", model, None)
+    }
+
     /// General constructor. `api_key` may be `None` for local servers that do not require authentication.
     pub fn with_base_url(
         base_url: impl Into<String>,
@@ -175,6 +180,82 @@ impl LlmClient for OpenAiCompatibleClient {
     }
 }
 
+/// Client for local Hugging Face Text Generation Inference (TGI) servers.
+///
+/// Typical for `text-generation-launcher`, Docker TGI, or `text-generation-webui`
+/// in TGI mode. Uses the `/generate` endpoint with standard parameters.
+#[derive(Clone, Debug)]
+pub struct HuggingFaceClient {
+    base_url: String,
+    http: Client,
+}
+
+impl HuggingFaceClient {
+    /// Creates a new client targeting the default TGI port (http://localhost:8080).
+    pub fn new() -> Self {
+        Self::with_base_url("http://localhost:8080")
+    }
+
+    /// Creates a client with a custom base URL.
+    pub fn with_base_url(base_url: impl Into<String>) -> Self {
+        let http = Client::builder()
+            .timeout(Duration::from_secs(90))
+            .build()
+            .expect("Failed to build reqwest client — this is a bug");
+
+        Self {
+            base_url: base_url.into().trim_end_matches('/').to_string(),
+            http,
+        }
+    }
+}
+
+#[async_trait]
+impl LlmClient for HuggingFaceClient {
+    async fn complete(&self, prompt: &str) -> Result<String> {
+        let prompt = prompt.trim();
+        if prompt.is_empty() {
+            anyhow::bail!("Prompt cannot be empty");
+        }
+
+        let url = format!("{}/generate", self.base_url);
+        let payload = json!({
+            "inputs": prompt,
+            "parameters": {
+                "max_new_tokens": 512,
+                "temperature": 0.2,
+                "top_p": 0.9,
+                "return_full_text": false
+            }
+        });
+
+        let resp = self.http
+            .post(&url)
+            .json(&payload)
+            .send()
+            .await
+            .context("Failed to connect to Hugging Face TGI server")?;
+
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
+            anyhow::bail!("TGI returned {}: {}", status, body);
+        }
+
+        let data: serde_json::Value = resp
+            .json()
+            .await
+            .context("TGI response was not valid JSON")?;
+
+        let response_text = data["generated_text"]
+            .as_str()
+            .unwrap_or("No generated_text field returned by TGI")
+            .to_string();
+
+        Ok(response_text)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,5 +282,22 @@ mod tests {
         assert!(result.is_err());
         let err = result.unwrap_err().to_string();
         assert!(err.contains("empty"));
+    }
+
+    #[tokio::test]
+    async fn test_huggingface_client_empty_prompt_rejected() {
+        let client = HuggingFaceClient::with_base_url("http://localhost:8080");
+        let result = client.complete("   ").await;
+        assert!(result.is_err());
+        let err = result.unwrap_err().to_string();
+        assert!(err.contains("empty"));
+    }
+
+    #[tokio::test]
+    async fn test_lm_studio_constructor() {
+        let client = OpenAiCompatibleClient::for_lm_studio("test-model");
+        assert_eq!(client.model, "test-model");
+        assert_eq!(client.base_url, "http://localhost:1234/v1");
+        assert!(client.api_key.is_none());
     }
 }

@@ -23,7 +23,7 @@
 
 LLM features ship quickly but adversarial robustness testing remains manual and incomplete. Existing solutions are cloud-only or lack depth for local models. LLM Probe delivers a fast, extensible, local-first toolkit so Rust developers can continuously test any model against real attack patterns and receive concrete risk reports.
 
-- **Local-first red teaming** — run attacks against Ollama, vLLM, or any OpenAI-compatible endpoint with zero data leaving your machine
+- **Local-first red teaming** — run attacks against Ollama, LM Studio, Hugging Face TGI, vLLM, or any OpenAI-compatible endpoint with zero data leaving your machine
 - **Battle-tested attack library** — 20+ built-in templates covering prompt injection, DAN-style jailbreaks, encoding tricks and PII extraction
 - **Instant risk scoring** — heuristic scoring (with optional LLM-as-judge) plus color-coded terminal reports that fit perfectly in CI
 - **Zero-boilerplate extensibility** — implement the `Attack` trait or load custom templates while reusing `heuristic_score`, `TemplateBasedAttack` and `ReportGenerator`
@@ -46,7 +46,7 @@ Fast heuristic_score plus optional LLM-as-judge that returns 0.0-1.0 vulnerabili
 </td>
 <td>
 🔌 <b>Model Agnostic</b><br>
-OllamaClient, OpenAiCompatibleClient or any type implementing the LlmClient trait
+OllamaClient, OpenAiCompatibleClient (LM Studio/vLLM/OpenAI), HuggingFaceClient (TGI) or any type implementing the LlmClient trait
 </td>
 </tr>
 <tr>
@@ -129,10 +129,26 @@ llm-probe scan --model llama3.1 \
   --output results.json
 ```
 
+Run against LM Studio (OpenAI-compatible local server):
+
+```bash
+llm-probe scan --model "TheBloke/Llama-2-7B-GGUF" \
+  --endpoint http://localhost:1234/v1 \
+  --attacks jailbreak
+```
+
+Run against a local Hugging Face TGI server:
+
+```bash
+llm-probe scan --model my-model \
+  --endpoint http://localhost:8080 \
+  --concurrency 8
+```
+
 Use the library with a real client:
 
 ```rust
-use llm_probe::{RedTeamer, model::OllamaClient};
+use llm_probe::{RedTeamer, model::{OllamaClient, OpenAiCompatibleClient, HuggingFaceClient}};
 use std::sync::Arc;
 
 let client = Arc::new(OllamaClient::new("llama3.1"));
@@ -142,6 +158,10 @@ let report = RedTeamer::builder()
     .build()
     .run("llama3.1")
     .await?;
+
+// LM Studio example
+let lm_client = Arc::new(OpenAiCompatibleClient::for_lm_studio("local-model"));
+let hf_client = Arc::new(HuggingFaceClient::new());
 ```
 
 Create a custom attack using the reusable helper:
@@ -174,6 +194,11 @@ let report = redteamer.run(&cfg.model).await?;
 
 The `ScanCmd` struct (used by the CLI) accepts the same fields that appear in `llm-probe.toml` (`model`, `endpoint`, `timeout`, `concurrency`, `output`, `api_key`).
 
+Endpoint URLs automatically select the right client:
+* `*:11434*` or containing "ollama" → `OllamaClient`
+* `*:1234*` or containing "lmstudio" → `OpenAiCompatibleClient::for_lm_studio`
+* `*:8080*` or containing "tgi"/"huggingface" → `HuggingFaceClient` (TGI `/generate`)
+
 </details>
 
 ## 🔧 Configuration
@@ -181,7 +206,7 @@ The `ScanCmd` struct (used by the CLI) accepts the same fields that appear in `l
 | Option       | Default     | Description |
 |--------------|-------------|-------------|
 | model        | "llama3.1"  | Target model name passed to Ollama or OpenAI-compatible endpoint |
-| endpoint     | None        | Custom HTTP base URL (used by OllamaClient::with_base_url and OpenAiCompatibleClient::with_base_url) |
+| endpoint     | None        | Custom HTTP base URL. Auto-selects client (Ollama / LM Studio / Hugging Face TGI / generic OpenAI-compatible) |
 | timeout      | 60          | HTTP request timeout in seconds |
 | concurrency  | 4           | Maximum number of concurrent Tokio attack tasks |
 | output       | None        | Path to write full JSON report + session replay |
@@ -201,7 +226,7 @@ flowchart TD
     RedTeamer --> Attacks[attacks::all_attacks<br/>or custom Vec<Box<dyn Attack>>]
     Attacks --> Injection[attacks::injection::PromptInjectionAttack]
     Attacks --> Jailbreak[attacks::jailbreak::JailbreakAttack]
-    RedTeamer --> Client[model::OllamaClient or OpenAiCompatibleClient]
+    RedTeamer --> Client[model::OllamaClient, OpenAiCompatibleClient (LM Studio), HuggingFaceClient (TGI)]
     Client --> LlmClient[LlmClient::complete]
     LlmClient --> Scorer[scorer::Scorer::score<br/>heuristic_score or llm_judge]
     RedTeamer --> Report[Report::from_results]
@@ -219,7 +244,7 @@ The `RedTeamer` orchestrates parallel execution of any `Attack` implementation a
 │   ├── main.rs                # CLI entrypoint, parses Cli/ScanCmd/ReportCmd
 │   ├── lib.rs                 # RedTeamer, RedTeamerBuilder, Attack + LlmClient traits, run(), Report
 │   ├── config.rs              # Config struct, load_config(), TOML deserialization
-│   ├── model.rs               # LlmClient trait + OllamaClient, OpenAiCompatibleClient
+│   ├── model.rs               # LlmClient trait + OllamaClient, OpenAiCompatibleClient, HuggingFaceClient
 │   ├── attack.rs              # TemplateBasedAttack, heuristic_score, failure_result, metadata
 │   ├── attacks/
 │   │   ├── mod.rs             # all_attacks() that registers injection + jailbreak
@@ -246,7 +271,7 @@ Covers `heuristic_score` accuracy, metadata clamping, `TemplateBasedAttack` exec
 ## 📍 Roadmap
 <!-- roadmap:start -->
 - [x] **v0.1.0** — first release: Attack Library, Risk Scoring, Model Agnostic, Terminal Reports
-- [ ] Support LM Studio and local Hugging Face endpoints
+- [x] Support LM Studio and local Hugging Face endpoints
 - [ ] Add YAML attack definitions so users never need to write Rust
 - [ ] SARIF output for GitHub Advanced Security integration
 - [ ] Ratatui-based interactive TUI to browse and replay attacks
