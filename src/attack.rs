@@ -119,6 +119,7 @@ pub fn metadata(
 /// shared heuristic scorer. Ideal for the majority of simple attack vectors.
 ///
 /// New attack types can embed this struct or implement [`Attack`] directly.
+#[derive(Clone)]
 pub struct TemplateBasedAttack {
     metadata: AttackMetadata,
     prompt_template: String,
@@ -189,6 +190,7 @@ impl Attack for TemplateBasedAttack {
 mod tests {
     use super::*;
     use crate::MockLlmClient;
+    use std::sync::Arc;
 
     #[test]
     fn test_metadata_clamps_severity() {
@@ -227,5 +229,19 @@ mod tests {
         // Mock returns a system-prompt leak for this input, so we expect high score
         assert!(result.score > 0.7);
         assert!(result.success);
+    }
+
+    #[test]
+    fn test_template_based_attack_clones() {
+        let attack = TemplateBasedAttack::new(
+            "Clone Test".to_string(),
+            AttackType::Jailbreak,
+            0.5,
+            "test clone".to_string(),
+            "test prompt".to_string(),
+        );
+        let cloned = attack.clone();
+        assert_eq!(cloned.metadata().name, "Clone Test");
+        assert_eq!(cloned.metadata().severity, 0.5);
     }
 }

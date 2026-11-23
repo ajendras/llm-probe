@@ -336,6 +336,7 @@ pub async fn run(command: Command) -> Result<()> {
 
 async fn run_scan(cmd: ScanCmd) -> Result<()> {
     println!(
+        "{}",
         r#"
   _      _               ____            
  | |    | |             |  _ \           
