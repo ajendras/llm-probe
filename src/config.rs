@@ -33,6 +33,11 @@ pub struct Config {
     /// Optional API key for authenticated endpoints (OpenAI-compatible).
     #[serde(default)]
     pub api_key: Option<String>,
+
+    /// Optional path to a YAML file containing custom attack definitions.
+    /// When present these attacks replace the built-in set.
+    #[serde(default)]
+    pub attacks_yaml: Option<String>,
 }
 
 fn default_model() -> String {
@@ -56,6 +61,7 @@ impl Default for Config {
             concurrency: default_concurrency(),
             output: None,
             api_key: None,
+            attacks_yaml: None,
         }
     }
 }
@@ -92,6 +98,7 @@ mod tests {
         assert_eq!(cfg.concurrency, 4);
         assert!(cfg.endpoint.is_none());
         assert!(cfg.api_key.is_none());
+        assert!(cfg.attacks_yaml.is_none());
     }
 
     #[test]

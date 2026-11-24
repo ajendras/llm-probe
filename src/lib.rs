@@ -3,12 +3,13 @@
 //!
 //! Provides the core public API including `RedTeamer`, the `Attack` trait,
 //! and `Report` structures. All attacks run against any `LlmClient` implementation.
+//! YAML support lets users define attacks without writing any Rust.
 
-mod attack;
-mod attacks;
-mod config;
-mod model;
-mod reporter;
+pub mod attack;
+pub mod attacks;
+pub mod config;
+pub mod model;
+pub mod reporter;
 mod scorer;
 mod templates;
 
@@ -123,6 +124,8 @@ impl Report {
         }
     }
 }
+
+pub use attack::{load_attacks_from_yaml, parse_yaml_attacks, YamlAttackDefinition};
 
 struct MockLlmClient;
 
@@ -358,6 +361,9 @@ async fn run_scan(cmd: ScanCmd) -> Result<()> {
         cfg.output = Some(output);
     }
     cfg.concurrency = cmd.concurrency;
+    if let Some(ayaml) = cmd.attacks_yaml {
+        cfg.attacks_yaml = Some(ayaml);
+    }
 
     let client: Arc<dyn LlmClient> = if let Some(ep) = &cfg.endpoint {
         let ep_lower = ep.to_ascii_lowercase();
@@ -374,7 +380,12 @@ async fn run_scan(cmd: ScanCmd) -> Result<()> {
         Arc::new(OllamaClient::new(cfg.model.clone()))
     };
 
-    let attacks = attacks::all_attacks();
+    let attacks = if let Some(ref yaml_path) = cfg.attacks_yaml {
+        attack::load_attacks_from_yaml(yaml_path)
+            .context("Failed to load attacks from YAML")?
+    } else {
+        attacks::all_attacks()
+    };
 
     let redteamer = RedTeamer::builder()
         .with_client(client)
@@ -514,6 +525,10 @@ pub struct ScanCmd {
     /// Write full JSON report + session replay to this path
     #[arg(short = 'o', long)]
     pub output: Option<String>,
+
+    /// Path to YAML file defining custom attacks (replaces built-ins)
+    #[arg(long)]
+    pub attacks_yaml: Option<String>,
 }
 
 #[derive(Parser)]

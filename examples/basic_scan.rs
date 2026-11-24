@@ -1,17 +1,15 @@
-use anyhow::Result;
-use colored::Colorize;
-use llm_probe::attacks::{injection::PromptInjectionAttack, jailbreak::JailbreakAttack};
-use llm_probe::{Attack, RedTeamer};
-use std::sync::Arc;
+use llm_probe::{attack::load_attacks_from_yaml, attacks, RedTeamer};
+use std::path::Path;
 
 #[tokio::main]
-async fn main() -> Result<()> {
-    println!("\n{}", "[DEMO]".green());
-    println!("{} LLM Probe basic scan example", "▶".green());
-    println!("{}", "─".repeat(60).dimmed());
-
-    let mut attacks: Vec<Box<dyn Attack>> = PromptInjectionAttack::all_attacks();
-    attacks.extend(JailbreakAttack::all_attacks());
+async fn main() -> anyhow::Result<()> {
+    // Use built-in attacks by default. If a user-provided attacks.yaml exists,
+    // load it instead so no Rust code is required to define new attacks.
+    let attacks = if Path::new("attacks.yaml").exists() {
+        load_attacks_from_yaml("attacks.yaml")?
+    } else {
+        attacks::all_attacks()
+    };
 
     let report = RedTeamer::builder()
         .attacks(attacks)
@@ -19,24 +17,7 @@ async fn main() -> Result<()> {
         .run("llama3.1")
         .await?;
 
-    println!("\n{}", "[+]".green().bold());
-    println!(
-        "Scan completed. Risk level: {} (avg score {:.2})",
-        report.summary.risk_level, report.summary.average_score
-    );
-
-    if report.summary.vulnerable > 0 {
-        println!(
-            "{} {} vulnerabilities detected. Review the report and consider mitigations.",
-            "[!]".red().bold(),
-            report.summary.vulnerable
-        );
-    } else {
-        println!("{} Model resisted all attacks.", "[+]".green().bold());
-    }
-
-    println!("{}", "─".repeat(60).dimmed());
-    println!("Full JSON output and session replay can be enabled with --output");
-
+    println!("Risk level: {} (avg score {:.2})", 
+             report.summary.risk_level, report.summary.average_score);
     Ok(())
 }
