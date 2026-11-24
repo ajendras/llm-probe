@@ -1,4 +1,9 @@
 #![warn(clippy::pedantic)]
+//! LLM Probe — Automated red-teaming toolkit for LLMs.
+//!
+//! Provides the core public API including `RedTeamer`, the `Attack` trait,
+//! and `Report` structures. All attacks run against any `LlmClient` implementation.
+
 mod attack;
 mod attacks;
 mod config;
@@ -6,10 +11,6 @@ mod model;
 mod reporter;
 mod scorer;
 mod templates;
-//! LLM Probe — Automated red-teaming toolkit for LLMs.
-//!
-//! Provides the core public API including `RedTeamer`, the `Attack` trait,
-//! and `Report` structures. All attacks run against any `LlmClient` implementation.
 
 use anyhow::{Context, Result};
 use async_trait::async_trait;
