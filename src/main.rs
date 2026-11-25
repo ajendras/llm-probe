@@ -3,10 +3,22 @@ use colored::*;
 use llm_probe::{run, Cli};
 use std::process;
 
+/// Enables ANSI escape sequence processing on Windows consoles.
+///
+/// `colored::control::set_virtual_terminal` only exists on Windows
+/// (it is `#[cfg(windows)]` inside the `colored` crate). Other platforms
+/// support ANSI colors natively, so this is a no-op there.
+#[cfg(windows)]
+fn enable_ansi_colors() {
+    colored::control::set_virtual_terminal(true).ok();
+}
+
+#[cfg(not(windows))]
+fn enable_ansi_colors() {}
+
 #[tokio::main]
 async fn main() {
-    // Enable ANSI colors on Windows if needed
-    colored::control::set_virtual_terminal(true).ok();
+    enable_ansi_colors();
 
     let cli = Cli::parse();
 
